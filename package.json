@@ -1,12 +1,12 @@
 {
-  "name": "code-collector",
-  "version": "1.0.2",
-  "description": "A CLI tool to collect code files into a single output with flexible configurations",
+  "name": "source-snap",
+  "version": "1.0.0",
+  "description": "CLI tool that aggregates source files with context-aware collection, gitignore respect, and export flexibility. Perfect for code reviews, LLM context preservation",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "code-collector": "dist/index.js"
+    "source-snap": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -33,13 +33,13 @@
     "**/*": "prettier -w -u ."
   },
   "license": "MIT",
-  "homepage": "https://www.npmjs.com/package/code-collector",
+  "homepage": "https://www.npmjs.com/package/source-snap",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Harshalkatakiya/code-collector.git"
+    "url": "git+https://github.com/Harshalkatakiya/source-snap.git"
   },
   "bugs": {
-    "url": "https://github.com/Harshalkatakiya/code-collector/issues"
+    "url": "https://github.com/Harshalkatakiya/source-snap/issues"
   },
   "publishConfig": {
     "access": "public"
@@ -56,7 +56,7 @@
   },
   "keywords": [
     "cli",
-    "code-collector",
+    "source-snap",
     "file-collector",
     "utility",
     "developer-tools"

@@ -19,7 +19,7 @@ interface Options {
 
 const defaultOptions: Options = {
   folderPath: process.cwd(),
-  outputFile: `code-collector-${new Date().toISOString().split('T')[0]}.txt`,
+  outputFile: `source-snap-${new Date().toISOString().split('T')[0]}.txt`,
   fileTypes: ['.js', '.ts'],
   maxSizeMB: 10,
   maxDepth: Infinity,
@@ -162,7 +162,7 @@ const displayInTerminal = (
   });
 };
 
-const codeCollector = async (options: Options) => {
+const sourceSnap = async (options: Options) => {
   log(
     `Starting code collection with options: ${JSON.stringify(options)}`,
     options
@@ -277,10 +277,10 @@ const getUserInput = async (): Promise<Options> => {
 };
 
 getUserInput()
-  .then(codeCollector)
+  .then(sourceSnap)
   .catch((err) => {
     console.error('Error during code collection: ', err);
   });
-export { codeCollector };
+export { sourceSnap };
 
 export default getUserInput;
