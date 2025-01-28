@@ -1,0 +1,64 @@
+{
+  "name": "code-collector",
+  "version": "1.0.0",
+  "description": "A CLI tool to collect code files into a single output with flexible configurations",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "code-collector": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint . --fix",
+    "watch": "tsc --watch",
+    "start": "tsc && node ./dist/index.js",
+    "release": "npm version patch && npm publish --access public --tag latest",
+    "prettier:check": "prettier -c .",
+    "prettier": "prettier -w -u .",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "inquirer": "^12.3.2"
+  },
+  "devDependencies": {
+    "@harshalkatakiya/prettier-config": "^1.0.16",
+    "@types/node": "^22.12.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3"
+  },
+  "lint-staged": {
+    "**/*": "prettier -w -u ."
+  },
+  "license": "MIT",
+  "homepage": "https://www.npmjs.com/package/code-collector",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Harshalkatakiya/code-collector.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Harshalkatakiya/code-collector/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "author": {
+    "name": "Harshal Katakiya",
+    "email": "katakiyaharshl001@gmail.com",
+    "url": "https://github.com/Harshalkatakiya"
+  },
+  "keywords": [
+    "cli",
+    "code-collector",
+    "file-collector",
+    "utility",
+    "developer-tools"
+  ]
+}
