@@ -1,7 +1,7 @@
 {
   "name": "source-snap",
   "version": "1.0.0",
-  "description": "CLI tool that aggregates source files with context-aware collection, gitignore respect, and export flexibility. Perfect for code reviews, LLM context preservation",
+  "description": "CLI tool that aggregates source files with context-aware collection, gitignore respect, and export flexibility. Perfect for code reviews, LLM context preservation.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
