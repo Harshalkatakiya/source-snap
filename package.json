@@ -1,12 +1,12 @@
 {
   "name": "code-collector",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "description": "A CLI tool to collect code files into a single output with flexible configurations",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "code-collector": "./dist/index.js"
+    "code-collector": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
