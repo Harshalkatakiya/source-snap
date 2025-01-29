@@ -7,7 +7,7 @@
 ## Features
 
 - **File Collection**: Collect files based on file types, sizes, and directory depth.
-- **Exclusion Options**: Exclude specific files or folders from collection.
+- **Inclusion & Exclusion Options**: Specify files and folders to include or exclude from collection.
 - **`.gitignore` Support**: Automatically skip files and folders specified in .gitignore.
 - **Customizable Outputs**: Generate results in either plain text or JSON format.
 - **Verbose Logging**: Get detailed insights during the scanning process.
@@ -41,19 +41,21 @@ You can customize the behavior by using the available options, either interactiv
 
 The following options are available:
 
-| Option             | Default Value                              | Description                                                                       |
-| ------------------ | ------------------------------------------ | --------------------------------------------------------------------------------- |
-| `folderPath`       | Current working directory                  | The folder to scan for source files.                                              |
-| `outputFile`       | `source-snap-YYYY-MM-DD.txt`               | The name of the output file.                                                      |
-| `fileTypes`        | `.js, .ts`                                 | Comma-separated list of file extensions to include (e.g., `.js,.ts`).             |
-| `maxSizeMB`        | 10                                         | Maximum file size (in MB) to include in the output.                               |
-| `maxDepth`         | Infinity                                   | Maximum directory depth for scanning.                                             |
-| `outputFormat`     | `txt`                                      | The format of the output file (`txt` or `json`).                                  |
-| `silent`           | `false`                                    | Disable logging output.                                                           |
-| `verbose`          | `false`                                    | Enable verbose logging.                                                           |
-| `excludeFolders`   | `dist, node_modules`                       | Comma-separated list of folders to exclude (e.g., `node_modules,dist`).           |
-| `excludeFiles`     | `.prettierignore, package-lock.json`, etc. | Comma-separated list of files to exclude (e.g., `.prettierrc,package-lock.json`). |
-| `respectGitignore` | `true`                                     | Whether to respect `.gitignore` rules when scanning files.                        |
+| Option             | Default Value                              | Description                                                                                   |
+| ------------------ | ------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `folderPath`       | Current working directory                  | The folder to scan for source files.                                                          |
+| `outputFile`       | `source-snap-YYYY-MM-DD.txt`               | The name of the output file.                                                                  |
+| `fileTypes`        | `.js, .ts`                                 | Comma-separated list of file extensions to include (e.g., `.js,.ts`).                         |
+| `maxSizeMB`        | 10                                         | Maximum file size (in MB) to include in the output.                                           |
+| `maxDepth`         | Infinity                                   | Maximum directory depth for scanning.                                                         |
+| `outputFormat`     | `txt`                                      | The format of the output file (`txt` or `json`).                                              |
+| `silent`           | `false`                                    | Disable logging output.                                                                       |
+| `verbose`          | `false`                                    | Enable verbose logging.                                                                       |
+| `includeFolders`   | None                                       | Comma-separated list of folders to include (if specified, only these will be scanned).        |
+| `includeFiles`     | None                                       | Comma-separated list of specific files to include (if specified, only these will be scanned). |
+| `excludeFolders`   | `dist, node_modules`                       | Comma-separated list of folders to exclude (e.g., `node_modules,dist`).                       |
+| `excludeFiles`     | `.prettierignore, package-lock.json`, etc. | Comma-separated list of files to exclude (e.g., `.prettierrc,package-lock.json`).             |
+| `respectGitignore` | `true`                                     | Whether to respect `.gitignore` rules when scanning files.                                    |
 
 ---
 
@@ -64,15 +66,17 @@ Running `source-snap` without any arguments launches an interactive setup, guidi
 ```bash
 $ source-snap
 ? Enter the folder path (default is current working directory):
+? Specify folders to include (comma separated, leave empty to include all):
+? Specify files to include (comma separated, leave empty to include all):
 ? Enter the output file name (default is generated name):
 ? Enter file types to include (comma separated, e.g., .js,.ts):
-? Enter the maximum file size in MB:
-? Enter the maximum depth for file collection:
-? Select the output format (txt or json):
+? Enter the maximum file size in MB (default is 10 MB):
+? Enter the maximum depth for file collection (default is Infinity):
+? Select the output format: (txt or json):
 ? Enable silent mode? (y/N):
 ? Enable verbose logging? (y/N):
-? Enter folders to exclude from collection:
-? Enter files to exclude from collection:
+? Enter folders to exclude from collection (comma separated, e.g., dist,node_modules):
+? Enter files to exclude from collection (comma separated, e.g., .prettierrc,.package.json):
 ? Respect .gitignore settings? (Y/n):
 ```
 
@@ -90,6 +94,12 @@ source-snap --fileTypes .js,.ts
 
 ```bash
 source-snap --folderPath ./src --fileTypes .js,.ts --maxSizeMB 5 --excludeFolders node_modules,dist --outputFormat txt
+```
+
+- **Include Specific Folders and Files**: Collect only the `src` and `config` folders and specific files:
+
+```bash
+source-snap --includeFolders src,config --includeFiles index.js,app.ts
 ```
 
 - **JSON Output**: Save results in JSON format:
