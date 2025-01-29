@@ -14,6 +14,8 @@ interface Options {
   verbose: boolean;
   excludeFolders: string[];
   excludeFiles: string[];
+  includeFolders?: string[];
+  includeFiles?: string[];
   respectGitignore: boolean;
 }
 
@@ -28,13 +30,23 @@ const defaultOptions: Options = {
   verbose: false,
   excludeFolders: ['dist', 'node_modules'],
   excludeFiles: [
-    'bun.lockb',
+    'bun.lock',
     'package-lock.json',
     'yarn.lock',
     'pnpm-lock.yaml',
     '.prettierignore'
   ],
   respectGitignore: true
+};
+
+const isExplicitlyIncluded = (filePath: string, options: Options): boolean => {
+  if (options.includeFolders?.length) {
+    return options.includeFolders.some((folder) => filePath.startsWith(folder));
+  }
+  if (options.includeFiles?.length) {
+    return options.includeFiles.includes(filePath);
+  }
+  return true;
 };
 
 const log = (message: string, options: Options) => {
@@ -78,6 +90,10 @@ const collectFiles = async (
   for (const entry of entries) {
     const fullPath = path.join(folderPath, entry.name);
     const relativePath = path.relative(options.folderPath, fullPath);
+    if (!isExplicitlyIncluded(relativePath, options)) {
+      log(`Skipping not explicitly included path: ${fullPath}`, options);
+      continue;
+    }
     if (isIgnored(relativePath, ignorePatterns)) {
       log(`Skipping ignored path: ${fullPath}`, options);
       continue;
@@ -202,6 +218,20 @@ const getUserInput = async (): Promise<Options> => {
     },
     {
       type: 'input',
+      name: 'includeFolders',
+      message:
+        'Specify folders to include (comma separated, leave empty to include all):',
+      default: ''
+    },
+    {
+      type: 'input',
+      name: 'includeFiles',
+      message:
+        'Specify files to include (comma separated, leave empty to include all):',
+      default: ''
+    },
+    {
+      type: 'input',
       name: 'outputFile',
       message: 'Enter the output file name (default is generated name):',
       default: defaultOptions.outputFile
@@ -264,6 +294,14 @@ const getUserInput = async (): Promise<Options> => {
       default: defaultOptions.respectGitignore
     }
   ]);
+  answers.includeFolders =
+    answers.includeFolders ?
+      answers.includeFolders.split(',').map((f: string) => f.trim())
+    : undefined;
+  answers.includeFiles =
+    answers.includeFiles ?
+      answers.includeFiles.split(',').map((f: string) => f.trim())
+    : undefined;
   answers.fileTypes = answers.fileTypes
     .split(',')
     .map((type: string) => type.trim());
