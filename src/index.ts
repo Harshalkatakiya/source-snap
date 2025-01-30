@@ -15,8 +15,6 @@ interface Options {
   excludeFolders: string[];
   excludeFiles: string[];
   respectGitignore: boolean;
-  includeFolders: string[];
-  includeFiles: string[];
 }
 
 const defaultOptions: Options = {
@@ -30,15 +28,13 @@ const defaultOptions: Options = {
   verbose: false,
   excludeFolders: ['dist', 'node_modules'],
   excludeFiles: [
-    'bun.lock',
+    'bun.lockb',
     'package-lock.json',
     'yarn.lock',
     'pnpm-lock.yaml',
     '.prettierignore'
   ],
-  respectGitignore: true,
-  includeFolders: [],
-  includeFiles: []
+  respectGitignore: true
 };
 
 const log = (message: string, options: Options) => {
@@ -82,70 +78,35 @@ const collectFiles = async (
   for (const entry of entries) {
     const fullPath = path.join(folderPath, entry.name);
     const relativePath = path.relative(options.folderPath, fullPath);
-    if (options.includeFolders.length > 0 || options.includeFiles.length > 0) {
-      if (entry.isDirectory()) {
-        const isIncluded = options.includeFolders.some((include) => {
-          const normalizedInclude = path.normalize(include);
-          return (
-            relativePath === normalizedInclude ||
-            relativePath.startsWith(normalizedInclude + path.sep)
-          );
-        });
-        if (!isIncluded) {
-          log(`Skipping non-included folder: ${fullPath}`, options);
-          continue;
-        }
-      } else if (entry.isFile()) {
-        const isIncluded = options.includeFiles.some((include) => {
-          const normalizedInclude = path.normalize(include);
-          return relativePath === normalizedInclude;
-        });
-        if (!isIncluded) {
-          log(`Skipping non-included file: ${fullPath}`, options);
-          continue;
-        }
-      }
-    } else {
-      if (options.respectGitignore && isIgnored(relativePath, ignorePatterns)) {
-        log(`Skipping ignored path: ${fullPath}`, options);
-        continue;
-      }
+    if (isIgnored(relativePath, ignorePatterns)) {
+      log(`Skipping ignored path: ${fullPath}`, options);
+      continue;
     }
     if (entry.isDirectory()) {
       if (
-        options.excludeFolders.some((exclude) =>
-          fullPath.includes(path.normalize(exclude))
-        )
+        options.excludeFolders.some((exclude) => fullPath.includes(exclude))
       ) {
-        log(`Skipping excluded folder: ${fullPath}`, options);
+        log(`Skipping folder: ${fullPath}`, options);
         continue;
       }
+      results.push(collectFiles(fullPath, options, ignorePatterns, depth + 1));
     } else if (entry.isFile()) {
       if (
-        options.excludeFiles.some((pattern) => {
-          const regex = new RegExp(
-            `^${pattern
-              .replace(/\./g, '\\.')
-              .replace(/\*/g, '.*')
-              .replace(/\?/g, '.')}$`
-          );
-          return regex.test(relativePath);
-        })
+        options.excludeFiles.some((pattern) =>
+          new RegExp(
+            `^${pattern.replace(/\./g, '\\.').replace(/\*/g, '.*').replace(/\?/g, '.')}$`
+          ).test(relativePath)
+        )
       ) {
         log(`Skipping excluded file: ${fullPath}`, options);
         continue;
       }
-    }
-    if (entry.isDirectory()) {
-      results.push(collectFiles(fullPath, options, ignorePatterns, depth + 1));
-    } else if (entry.isFile()) {
       const fileExtension = path.extname(entry.name).toLowerCase();
       if (
         options.fileTypes.length > 0 &&
         !options.fileTypes.includes(fileExtension)
-      ) {
+      )
         continue;
-      }
       results.push(
         (async () => {
           const stats = await fs.stat(fullPath);
@@ -207,13 +168,7 @@ const sourceSnap = async (options: Options) => {
     options
   );
   const ignorePatterns =
-    (
-      options.includeFolders.length === 0 &&
-      options.includeFiles.length === 0 &&
-      options.respectGitignore
-    ) ?
-      await parseGitignore(options.folderPath)
-    : [];
+    options.respectGitignore ? await parseGitignore(options.folderPath) : [];
   const result = await collectFiles(
     options.folderPath,
     options,
@@ -244,19 +199,6 @@ const getUserInput = async (): Promise<Options> => {
           return 'This path does not exist. Please enter a valid path.';
         }
       }
-    },
-    {
-      type: 'input',
-      name: 'includeFolders',
-      message: 'Enter folders to include (comma separated, e.g., src,lib):',
-      default: defaultOptions.includeFolders.join(',')
-    },
-    {
-      type: 'input',
-      name: 'includeFiles',
-      message:
-        'Enter files to include (comma separated, e.g., index.js,main.ts):',
-      default: defaultOptions.includeFiles.join(',')
     },
     {
       type: 'input',
@@ -322,12 +264,6 @@ const getUserInput = async (): Promise<Options> => {
       default: defaultOptions.respectGitignore
     }
   ]);
-  answers.includeFolders = answers.includeFolders
-    .split(',')
-    .map((folder: string) => folder.trim());
-  answers.includeFiles = answers.includeFiles
-    .split(',')
-    .map((file: string) => file.trim());
   answers.fileTypes = answers.fileTypes
     .split(',')
     .map((type: string) => type.trim());
