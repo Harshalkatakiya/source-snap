@@ -19,9 +19,7 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "ignore": "^7.0.3",
-    "inquirer": "^12.4.2",
-    "minimatch": "^10.0.1"
+    "inquirer": "^12.4.2"
   },
   "devDependencies": {
     "@harshalkatakiya/prettier-config": "^1.0.27",

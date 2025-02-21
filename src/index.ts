@@ -1,35 +1,25 @@
 #!/usr/bin/env node
 import * as fs from 'fs/promises';
-import ignore from 'ignore';
 import inquirer from 'inquirer';
-import { minimatch } from 'minimatch';
 import * as path from 'path';
 
-/**
- * Interface defining the configuration options for the script.
- */
 interface Options {
-  folderPath: string; // Directory to collect files from
-  outputFile: string; // Output file name
-  fileTypes: string[]; // File extensions to include (e.g., ['.js', '.ts'])
-  maxSizeMB: number; // Maximum file size in MB
-  maxDepth: number; // Maximum directory depth for recursion
-  outputFormat: 'txt' | 'json'; // Output format
-  silent: boolean; // Suppress console output if true
-  verbose: boolean; // Enable detailed logging if true
-  excludeFolders: string[]; // Folder names to exclude
-  excludeFiles: string[]; // File names or patterns to exclude
-  respectGitignore: boolean; // Respect .gitignore if true
-  includePatterns: string[]; // Glob patterns to include files
-  excludePatterns: string[]; // Glob patterns to exclude files
+  folderPath: string;
+  outputFile: string;
+  fileTypes: string[];
+  maxSizeMB: number;
+  maxDepth: number;
+  outputFormat: 'txt' | 'json';
+  silent: boolean;
+  verbose: boolean;
+  excludeFolders: string[];
+  excludeFiles: string[];
+  respectGitignore: boolean;
 }
 
-/**
- * Default configuration options.
- */
 const defaultOptions: Options = {
   folderPath: process.cwd(),
-  outputFile: `source-snap-${new Date().toISOString().replace(/:/g, '-').split('.')[0]}.txt`,
+  outputFile: `source-snap-${new Date().toISOString().split('T')[0]}.txt`,
   fileTypes: ['.js', '.ts'],
   maxSizeMB: 10,
   maxDepth: Infinity,
@@ -44,64 +34,42 @@ const defaultOptions: Options = {
     'pnpm-lock.yaml',
     '.prettierignore'
   ],
-  respectGitignore: true,
-  includePatterns: [],
-  excludePatterns: []
+  respectGitignore: true
 };
 
-/**
- * Logs a message to the console unless silent mode is enabled.
- * @param message - The message to log
- * @param options - Configuration options
- */
 const log = (message: string, options: Options) => {
   if (!options.silent) {
     console.log(message);
   }
 };
 
-/**
- * Loads configuration from a .sourcesnaprc file if it exists.
- * @returns Partial Options or null if the file doesn't exist
- */
-const loadConfigFile = async (): Promise<Partial<Options> | null> => {
-  const configPath = path.join(process.cwd(), '.sourcesnaprc');
-  try {
-    const configContent = await fs.readFile(configPath, 'utf-8');
-    return JSON.parse(configContent);
-  } catch {
-    return null;
-  }
-};
-
-/**
- * Parses the .gitignore file in the specified folder.
- * @param folderPath - Directory containing the .gitignore file
- * @returns An ignore instance with .gitignore patterns
- */
-const parseGitignore = async (folderPath: string): Promise<ignore.Ignore> => {
+const parseGitignore = async (folderPath: string): Promise<string[]> => {
   const gitignorePath = path.join(folderPath, '.gitignore');
   try {
     const gitignoreContent = await fs.readFile(gitignorePath, 'utf-8');
-    const ig = ignore().add(gitignoreContent);
-    return ig;
+    return gitignoreContent
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('#'));
   } catch {
-    return ignore();
+    return [];
   }
 };
 
-/**
- * Recursively collects files from a directory based on options.
- * @param folderPath - Current directory path
- * @param options - Configuration options
- * @param ig - Ignore instance for .gitignore patterns
- * @param depth - Current recursion depth
- * @returns Array of file objects with path and content
- */
+const isIgnored = (filePath: string, ignorePatterns: string[]): boolean =>
+  ignorePatterns.some((pattern) => {
+    const regexPattern = new RegExp(
+      '^' +
+        pattern.replace(/\./g, '\\.').replace(/\*/g, '.*').replace(/\?/g, '.') +
+        '$'
+    );
+    return regexPattern.test(filePath);
+  });
+
 const collectFiles = async (
   folderPath: string,
   options: Options,
-  ig: ignore.Ignore,
+  ignorePatterns: string[],
   depth = 0
 ): Promise<{ path: string; content: string }[]> => {
   if (depth > options.maxDepth) return [];
@@ -110,40 +78,27 @@ const collectFiles = async (
   for (const entry of entries) {
     const fullPath = path.join(folderPath, entry.name);
     const relativePath = path.relative(options.folderPath, fullPath);
-    if (options.respectGitignore && ig.ignores(relativePath)) {
+    if (isIgnored(relativePath, ignorePatterns)) {
       log(`Skipping ignored path: ${fullPath}`, options);
       continue;
     }
-    if (entry.isSymbolicLink()) {
-      log(`Skipping symlink: ${fullPath}`, options);
-      continue;
-    }
     if (entry.isDirectory()) {
-      if (options.excludeFolders.includes(entry.name)) {
+      if (
+        options.excludeFolders.some((exclude) => fullPath.includes(exclude))
+      ) {
         log(`Skipping folder: ${fullPath}`, options);
         continue;
       }
-      results.push(collectFiles(fullPath, options, ig, depth + 1));
+      results.push(collectFiles(fullPath, options, ignorePatterns, depth + 1));
     } else if (entry.isFile()) {
       if (
-        options.excludeFiles.some((pattern) => minimatch(relativePath, pattern))
+        options.excludeFiles.some((pattern) =>
+          new RegExp(
+            `^${pattern.replace(/\./g, '\\.').replace(/\*/g, '.*').replace(/\?/g, '.')}$`
+          ).test(relativePath)
+        )
       ) {
         log(`Skipping excluded file: ${fullPath}`, options);
-        continue;
-      }
-      if (
-        options.includePatterns.length > 0 &&
-        !options.includePatterns.some((pattern) =>
-          minimatch(relativePath, pattern)
-        )
-      ) {
-        continue;
-      }
-      if (
-        options.excludePatterns.some((pattern) =>
-          minimatch(relativePath, pattern)
-        )
-      ) {
         continue;
       }
       const fileExtension = path.extname(entry.name).toLowerCase();
@@ -173,23 +128,17 @@ const collectFiles = async (
   return nestedResults.flat();
 };
 
-/**
- * Writes the collected files to the output file in the specified format.
- * @param result - Array of file objects
- * @param options - Configuration options
- * @returns Mapping of file paths to line numbers in the output
- */
 const writeOutput = async (
   result: { path: string; content: string }[],
   options: Options
 ): Promise<Array<{ path: string; line: number }>> => {
   const fileLineMap: Array<{ path: string; line: number }> = [];
+  const outputLines: string[] = result.reduce((acc, file) => {
+    const currentLine = acc.length + 1;
+    fileLineMap.push({ path: file.path, line: currentLine });
+    return [...acc, `// ${file.path}`, ...file.content.split('\n'), ''];
+  }, [] as string[]);
   if (options.outputFormat === 'txt') {
-    const outputLines: string[] = result.reduce((acc, file) => {
-      const currentLine = acc.length + 1;
-      fileLineMap.push({ path: file.path, line: currentLine });
-      return [...acc, `// ${file.path}`, ...file.content.split('\n'), ''];
-    }, [] as string[]);
     await fs.writeFile(options.outputFile, outputLines.join('\n'), 'utf-8');
   } else {
     await fs.writeFile(
@@ -201,11 +150,6 @@ const writeOutput = async (
   return fileLineMap;
 };
 
-/**
- * Displays collected files with line numbers in the terminal.
- * @param fileLineMap - Mapping of file paths to line numbers
- * @param options - Configuration options
- */
 const displayInTerminal = (
   fileLineMap: Array<{ path: string; line: number }>,
   options: Options
@@ -214,61 +158,25 @@ const displayInTerminal = (
   fileLineMap.forEach((entry) => {
     const link = `${outputFileName}:${entry.line}:0`;
     log(`${entry.line}:0 // ${entry.path}`, options);
-    log(`Ctrl+Click to open: ${link}\n`, options);
+    console.log(`Ctrl+Click to open: ${link}\n`);
   });
 };
 
-/**
- * Interface for collection statistics.
- */
-interface Stats {
-  totalFiles: number; // Total number of files collected
-  totalLines: number; // Total lines across all files
-  fileTypeStats: Map<string, { files: number; lines: number }>; // Stats per file type
-}
-
-/**
- * Main function to collect and process source files.
- * @param options - Configuration options
- */
 const sourceSnap = async (options: Options) => {
   log(
     `Starting code collection with options: ${JSON.stringify(options)}`,
     options
   );
-  const ig = await parseGitignore(options.folderPath);
-  const result = await collectFiles(options.folderPath, options, ig);
-  const stats: Stats = {
-    totalFiles: 0,
-    totalLines: 0,
-    fileTypeStats: new Map()
-  };
-  result.forEach((file) => {
-    const lines = file.content.split('\n').length;
-    stats.totalFiles++;
-    stats.totalLines += lines;
-    const ext = path.extname(file.path).toLowerCase();
-    if (!stats.fileTypeStats.has(ext)) {
-      stats.fileTypeStats.set(ext, { files: 0, lines: 0 });
-    }
-    const typeStats = stats.fileTypeStats.get(ext)!;
-    typeStats.files++;
-    typeStats.lines += lines;
-  });
+  const ignorePatterns =
+    options.respectGitignore ? await parseGitignore(options.folderPath) : [];
+  const result = await collectFiles(
+    options.folderPath,
+    options,
+    ignorePatterns
+  );
   const fileLineMap = await writeOutput(result, options);
   if (!options.silent) {
     displayInTerminal(fileLineMap, options);
-  }
-  if (options.verbose) {
-    log(`Summary:`, options);
-    log(`Total files: ${stats.totalFiles}`, options);
-    log(`Total lines: ${stats.totalLines}`, options);
-    for (const [ext, typeStats] of stats.fileTypeStats) {
-      log(
-        `${ext}: ${typeStats.files} files, ${typeStats.lines} lines`,
-        options
-      );
-    }
   }
   log(
     `\nCode collection completed! Output file: ${path.resolve(options.outputFile)}`,
@@ -276,19 +184,14 @@ const sourceSnap = async (options: Options) => {
   );
 };
 
-/**
- * Collects user input interactively to configure the script.
- * @returns Configured options based on user input
- */
 const getUserInput = async (): Promise<Options> => {
-  const configOptions = await loadConfigFile();
   const answers = await inquirer.prompt([
     {
       type: 'input',
       name: 'folderPath',
       message: 'Enter the folder path (default is current working directory):',
-      default: configOptions?.folderPath ?? defaultOptions.folderPath,
-      validate: async (input) => {
+      default: defaultOptions.folderPath,
+      async validate(input) {
         try {
           await fs.access(input);
           return true;
@@ -301,115 +204,83 @@ const getUserInput = async (): Promise<Options> => {
       type: 'input',
       name: 'outputFile',
       message: 'Enter the output file name (default is generated name):',
-      default: configOptions?.outputFile ?? defaultOptions.outputFile
+      default: defaultOptions.outputFile
     },
     {
       type: 'input',
       name: 'fileTypes',
       message: `Enter file types to include (comma separated, e.g., ${defaultOptions.fileTypes.join(',')}):`,
-      default: (configOptions?.fileTypes ?? defaultOptions.fileTypes).join(',')
+      default: defaultOptions.fileTypes.join(',')
     },
     {
       type: 'number',
       name: 'maxSizeMB',
       message: `Enter the maximum file size in MB (default is ${defaultOptions.maxSizeMB} MB):`,
-      default: configOptions?.maxSizeMB ?? defaultOptions.maxSizeMB
+      default: defaultOptions.maxSizeMB
     },
     {
       type: 'number',
       name: 'maxDepth',
       message:
         'Enter the maximum depth for file collection (default is Infinity):',
-      default: configOptions?.maxDepth ?? defaultOptions.maxDepth
+      default: defaultOptions.maxDepth
     },
     {
       type: 'list',
       name: 'outputFormat',
       message: 'Select the output format:',
       choices: ['txt', 'json'],
-      default: configOptions?.outputFormat ?? defaultOptions.outputFormat
+      default: defaultOptions.outputFormat
     },
     {
       type: 'confirm',
       name: 'silent',
       message: 'Enable silent mode?',
-      default: configOptions?.silent ?? defaultOptions.silent
+      default: defaultOptions.silent
     },
     {
       type: 'confirm',
       name: 'verbose',
       message: 'Enable verbose logging?',
-      default: configOptions?.verbose ?? defaultOptions.verbose
+      default: defaultOptions.verbose
     },
     {
       type: 'input',
       name: 'excludeFolders',
       message: `Enter folders to exclude from collection (comma separated, e.g., ${defaultOptions.excludeFolders.join(',')}):`,
-      default: (
-        configOptions?.excludeFolders ?? defaultOptions.excludeFolders
-      ).join(',')
+      default: defaultOptions.excludeFolders.join(',')
     },
     {
       type: 'input',
       name: 'excludeFiles',
       message:
         'Enter files to exclude from collection (comma separated, e.g., .prettierrc,.package.json):',
-      default: (
-        configOptions?.excludeFiles ?? defaultOptions.excludeFiles
-      ).join(',')
+      default: defaultOptions.excludeFiles.join(',')
     },
     {
       type: 'confirm',
       name: 'respectGitignore',
       message: 'Respect .gitignore settings?',
-      default:
-        configOptions?.respectGitignore ?? defaultOptions.respectGitignore
-    },
-    {
-      type: 'input',
-      name: 'includePatterns',
-      message:
-        'Enter include patterns (comma separated glob patterns, e.g., **/*.js):',
-      default: (
-        configOptions?.includePatterns ?? defaultOptions.includePatterns
-      ).join(',')
-    },
-    {
-      type: 'input',
-      name: 'excludePatterns',
-      message:
-        'Enter exclude patterns (comma separated glob patterns, e.g., **/*.test.js):',
-      default: (
-        configOptions?.excludePatterns ?? defaultOptions.excludePatterns
-      ).join(',')
+      default: defaultOptions.respectGitignore
     }
   ]);
   answers.fileTypes = answers.fileTypes
     .split(',')
-    .map((type: string) => type.trim().toLowerCase());
+    .map((type: string) => type.trim());
   answers.excludeFolders = answers.excludeFolders
     .split(',')
     .map((folder: string) => folder.trim());
   answers.excludeFiles = answers.excludeFiles
     .split(',')
     .map((file: string) => file.trim());
-  answers.includePatterns = answers.includePatterns
-    .split(',')
-    .map((pattern: string) => pattern.trim());
-  answers.excludePatterns = answers.excludePatterns
-    .split(',')
-    .map((pattern: string) => pattern.trim());
-  return { ...defaultOptions, ...configOptions, ...answers };
+  return answers;
 };
 
-/**
- * Entry point of the script.
- */
 getUserInput()
   .then(sourceSnap)
   .catch((err) => {
     console.error('Error during code collection: ', err);
   });
-
 export { sourceSnap };
+
 export default getUserInput;
