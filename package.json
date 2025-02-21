@@ -19,14 +19,16 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "inquirer": "^12.3.2"
+    "ignore": "^7.0.3",
+    "inquirer": "^12.4.2",
+    "minimatch": "^10.0.1"
   },
   "devDependencies": {
-    "@harshalkatakiya/prettier-config": "^1.0.16",
-    "@types/node": "^22.12.0",
+    "@harshalkatakiya/prettier-config": "^1.0.27",
+    "@types/node": "^22.13.4",
     "husky": "^9.1.7",
     "lint-staged": "^15.4.3",
-    "prettier": "^3.4.2",
+    "prettier": "^3.5.1",
     "typescript": "^5.7.3"
   },
   "lint-staged": {
